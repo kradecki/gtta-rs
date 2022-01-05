@@ -1,10 +1,8 @@
+use chrono::Local;
 use clap::Parser;
 use std::env;
+mod custom_types;
 mod gitlab_api;
-use derive_more::Display;
-use regex::Regex;
-use std::fmt;
-use std::str::FromStr;
 
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
@@ -19,35 +17,13 @@ struct Args {
 
     /// Task duration in (m)inutes or (h)hours. Example: 30m or 3h
     #[clap(short, long)]
-    time: ReportedTime,
-}
-#[derive(Debug)]
-pub struct ReportedTime(String);
+    time: crate::custom_types::ReportedTime,
 
-impl FromStr for ReportedTime {
-    type Err = ReportedTimeParseErrror;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let re = Regex::new(r"[0-9]+[h|m]").unwrap();
-
-        if re.is_match(s) {
-            Ok(ReportedTime(s.to_string()))
-        } else {
-            Err(ReportedTimeParseErrror::InvalidFormat)
-        }
-    }
+    /// Date when the task was performed (yyyy--mm-dd). Defaults to today
+    #[clap(short, long, default_value_t = Local::now().format("%Y-%m-%d").to_string().parse::<crate::custom_types::ReportedDate>().unwrap())]
+    //date: chrono::DateTime<Local>,
+    date: crate::custom_types::ReportedDate,
 }
-
-impl fmt::Display for ReportedTime {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-#[derive(Display, Debug, PartialEq)]
-pub enum ReportedTimeParseErrror {
-    InvalidFormat,
-}
-impl std::error::Error for ReportedTimeParseErrror {}
 
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
@@ -57,6 +33,7 @@ async fn main() -> Result<(), reqwest::Error> {
     println!("Project: {}", args.project);
     println!("Comment: {}", args.comment);
     println!("Time: {}", args.time);
+    println!("Time: {}", args.date);
     println!("Gitlab token: {}", gitlab_token);
 
     let gitlab_project_details =
